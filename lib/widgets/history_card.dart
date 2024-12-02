@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/order_history.dart';
 import '../helpers/format_price.dart';
 import '../helpers/format_date.dart';
+import '../pages/detail_order.dart';
 
 class HistoryCard extends StatelessWidget {
   final OrderHistory orderHistory;
@@ -15,26 +16,12 @@ class HistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        if (context.mounted) {
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('Gagal'),
-                content:
-                    const Text('Email tidak ditemukan atau kata sandi salah'),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    child: const Text('Ok'),
-                  ),
-                ],
-              );
-            },
-          );
-        }
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DetailOrderPage(orderId: orderHistory.id),
+          ),
+        );
       },
       child: Card(
         shape: RoundedRectangleBorder(

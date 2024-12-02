@@ -1,4 +1,5 @@
 import '../models/order.dart';
+import '../models/detail_order.dart';
 import '../models/order_history.dart';
 import 'db.dart';
 
@@ -56,6 +57,30 @@ class OrderService {
       return Order.fromMap(maps.first);
     }
     return null;
+  }
+
+  Future<DetailOrder> getDetailOrder(int id) async {
+    final db = await _dbService.database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT
+        users.name AS user_name,
+        orders.ticket AS ticket,
+        orders.total_price AS total_price,
+        orders.method AS method,
+        orders.note AS note,
+        orders.status AS status,
+        films.title AS film_title,
+        schedules.time AS schedule_time,
+        confirmers.name AS confirmed_by_name
+      FROM orders
+      INNER JOIN users ON users.id = orders.user_id
+      INNER JOIN films ON films.id = orders.film_id
+      INNER JOIN schedules ON schedules.id = orders.schedule_id
+      LEFT JOIN users AS confirmers ON confirmers.id = orders.confirmed_by
+      WHERE orders.id = ?;
+    ''', [id]);
+
+    return DetailOrder.fromMap(maps.first);
   }
 
   Future<int> updateOrder(Order order) async {
