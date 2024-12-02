@@ -37,7 +37,6 @@ class _DetailFilmPageState extends State<DetailFilmPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detail Film'),
-        elevation: 0,
       ),
       body: SingleChildScrollView(
         child: Padding(
