@@ -1,4 +1,6 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
+import '../models/session.dart';
 import 'db.dart';
 
 class UserService {
@@ -24,21 +26,6 @@ class UserService {
     return null;
   }
 
-  Future<int?> login(String email, String password) async {
-    final db = await _dbService.database;
-    final maps = await db.query(
-      'users',
-      columns: ['id'],
-      where: 'email = ? AND password = ?',
-      whereArgs: [email, password],
-    );
-
-    if (maps.isNotEmpty) {
-      return maps.first['id'] as int;
-    }
-    return null;
-  }
-
   Future<int> updateUser(User user) async {
     final db = await _dbService.database;
     return await db.update(
@@ -52,5 +39,61 @@ class UserService {
   Future<int> deleteUser(int id) async {
     final db = await _dbService.database;
     return await db.delete('users', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<bool> login(String email, String password) async {
+    final db = await _dbService.database;
+    final maps = await db.query(
+      'users',
+      where: 'email = ? AND password = ?',
+      whereArgs: [email, password],
+    );
+
+    if (maps.isNotEmpty) {
+      User? user = User.fromMap(maps.first);
+      final sharedPreferences = await SharedPreferences.getInstance();
+      await sharedPreferences.setInt('userId', user.id!);
+      await sharedPreferences.setBool(
+          'isAdmin', user.isAdmin == 1 ? true : false);
+      await sharedPreferences.setBool('isLoggedIn', true);
+
+      return true;
+    }
+
+    return false;
+  }
+
+  Future<bool> register(String name, String email, String password) async {
+    final isRegistered = await createUser(User(
+      name: name,
+      email: email,
+      password: password,
+      isAdmin: 0,
+      createdAt: DateTime.now().toString(),
+      updatedAt: DateTime.now().toString(),
+    ));
+
+    if (isRegistered > 0) {
+      await login(email, password);
+
+      return true;
+    }
+
+    return false;
+  }
+
+  void logout() async {
+    final sharedPreferences = await SharedPreferences.getInstance();
+    await sharedPreferences.clear();
+  }
+
+  Future<Session> getSession() async {
+    final sharedPreferences = await SharedPreferences.getInstance();
+
+    return Session(
+      userId: sharedPreferences.getInt('userId') ?? 0,
+      isAdmin: sharedPreferences.getBool('isAdmin') ?? false,
+      isLoggedIn: sharedPreferences.getBool('isLoggedIn') ?? false,
+    );
   }
 }

@@ -29,24 +29,29 @@ class OrderService {
     return maps.map((map) => Order.fromMap(map)).toList();
   }
 
-  Future<List<OrderHistory>> getOrderHistories(int userId) async {
+  Future<List<OrderHistory>> getOrderHistories(int? userId) async {
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
-          SELECT
-            orders.id AS order_id,
-            orders.ticket AS ticket,
-            orders.total_price AS total_price,
-            orders.status AS status,
-            films.title AS film_title,
-            schedules.time AS schedule_time
-          FROM orders
-          INNER JOIN
-            films ON orders.film_id = films.id
-          INNER JOIN
-            schedules ON orders.schedule_id = schedules.id
-          WHERE
-            orders.user_id = ?
-        ''', [userId]);
+      SELECT
+        orders.id AS order_id,
+        users.name AS user_name,
+        orders.ticket AS ticket,
+        orders.total_price AS total_price,
+        orders.status AS status,
+        films.title AS film_title,
+        schedules.time AS schedule_time
+      FROM orders
+      INNER JOIN
+        users ON orders.user_id = users.id
+      INNER JOIN
+        films ON orders.film_id = films.id
+      INNER JOIN
+        schedules ON orders.schedule_id = schedules.id
+      ${userId == null ? '' : '''
+      WHERE
+        orders.user_id = ?
+      '''}
+    ''', userId == null ? [] : [userId]);
     return maps.map((map) => OrderHistory.fromMap(map)).toList();
   }
 
@@ -63,20 +68,16 @@ class OrderService {
     final db = await _dbService.database;
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT
-        users.name AS user_name,
-        orders.ticket AS ticket,
-        orders.total_price AS total_price,
-        orders.method AS method,
-        orders.note AS note,
-        orders.status AS status,
+        users.name AS booker_name,
+        orders.*,
         films.title AS film_title,
         schedules.time AS schedule_time,
-        confirmers.name AS confirmed_by_name
+        admin.name AS admin_name
       FROM orders
       INNER JOIN users ON users.id = orders.user_id
       INNER JOIN films ON films.id = orders.film_id
       INNER JOIN schedules ON schedules.id = orders.schedule_id
-      LEFT JOIN users AS confirmers ON confirmers.id = orders.confirmed_by
+      LEFT JOIN users AS admin ON admin.id = orders.confirmed_by
       WHERE orders.id = ?;
     ''', [id]);
 
