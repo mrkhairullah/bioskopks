@@ -9,7 +9,7 @@ class Film {
   String trailer;
   String poster;
   String genre;
-  String duration;
+  int duration;
 
   Film({
     this.id,

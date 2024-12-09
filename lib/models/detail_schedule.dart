@@ -7,8 +7,7 @@ class DetailSchedule {
   String available;
   String filmTitle;
   String studioName;
-  int studioMaxSeat;
-  int studioCapacitySeat;
+  int studioSeat;
 
   DetailSchedule({
     required this.scheduleId,
@@ -19,8 +18,7 @@ class DetailSchedule {
     required this.available,
     required this.filmTitle,
     required this.studioName,
-    required this.studioMaxSeat,
-    required this.studioCapacitySeat,
+    required this.studioSeat,
   });
 
   factory DetailSchedule.fromMap(Map<String, dynamic> map) {
@@ -33,8 +31,7 @@ class DetailSchedule {
       available: map['available'],
       filmTitle: map['film_title'],
       studioName: map['studio_name'],
-      studioMaxSeat: map['studio_max_seat'],
-      studioCapacitySeat: map['studio_capacity_seat'],
+      studioSeat: map['studio_seat'],
     );
   }
 }

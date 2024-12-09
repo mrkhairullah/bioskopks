@@ -1,8 +1,9 @@
 class User {
-  final int? id;
-  final String name;
-  final String email;
-  final String password;
+  int? id;
+  String name;
+  String email;
+  String password;
+  int isAdmin;
   String? createdAt;
   String? updatedAt;
 
@@ -11,6 +12,7 @@ class User {
     required this.name,
     required this.email,
     required this.password,
+    required this.isAdmin,
     this.createdAt,
     this.updatedAt,
   });
@@ -20,6 +22,7 @@ class User {
       'name': name,
       'email': email,
       'password': password,
+      'is_admin': isAdmin,
       'created_at': createdAt ?? DateTime.now().toIso8601String(),
       'updated_at': updatedAt ?? DateTime.now().toIso8601String(),
     };
@@ -36,6 +39,7 @@ class User {
       name: map['name'],
       email: map['email'],
       password: map['password'],
+      isAdmin: map['is_admin'],
       createdAt: map['created_at'],
       updatedAt: map['updated_at'],
     );

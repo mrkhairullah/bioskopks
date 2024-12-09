@@ -1,19 +1,19 @@
 class Studio {
   int? id;
   String name;
-  String maxSeat;
+  int seat;
 
   Studio({
     this.id,
     required this.name,
-    required this.maxSeat,
+    required this.seat,
   });
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'name': name,
-      'max_seat': maxSeat,
+      'seat': seat,
     };
   }
 
@@ -21,7 +21,7 @@ class Studio {
     return Studio(
       id: map['id'],
       name: map['name'],
-      maxSeat: map['max_seat'],
+      seat: map['seat'],
     );
   }
 }
