@@ -83,7 +83,7 @@ class FilmCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4.0),
                     Text(
-                      '${film.genre} • ${film.duration} Menit',
+                      '${film.genre} • ${film.duration.toString()} Menit',
                       style: const TextStyle(
                         color: Colors.black45,
                         fontSize: 14.0,

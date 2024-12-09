@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
 import '../models/detail_schedule.dart';
-import '../helpers/format_price.dart';
-import '../helpers/format_date.dart';
+import '../models/schedule.dart';
+import '../utils/format_price.dart';
+import '../utils/format_date.dart';
 import '../pages/order.dart';
+import '../pages/save_schedule.dart';
+import '../services/schedule.dart';
+import '../widgets/main_navigation_bar.dart';
 
 class DetailScheduleCard extends StatelessWidget {
   final DetailSchedule detailSchedule;
+  final bool isAdmin;
 
   const DetailScheduleCard({
     super.key,
     required this.detailSchedule,
+    this.isAdmin = false,
   });
+
+  Future<void> _onDelete(BuildContext context) async {
+    await ScheduleService().deleteSchedule(detailSchedule.scheduleId);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +35,24 @@ class DetailScheduleCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Container(
+              padding: const EdgeInsets.symmetric(
+                vertical: 4.0,
+                horizontal: 8.0,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              child: Text(
+                detailSchedule.available,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             Text(
               detailSchedule.studioName,
               style: const TextStyle(
@@ -66,6 +94,73 @@ class DetailScheduleCard extends StatelessWidget {
                 child: const Text('Pesan Tiket'),
               ),
             ),
+            isAdmin
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => SaveSchedulePage(
+                                filmId: detailSchedule.filmId,
+                                schedule: Schedule(
+                                  id: detailSchedule.scheduleId,
+                                  filmId: detailSchedule.filmId,
+                                  studioId: detailSchedule.studioId,
+                                  time: detailSchedule.time,
+                                  price: detailSchedule.price,
+                                  available: detailSchedule.available,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: const Text('Hapus'),
+                                content: Text(
+                                    'Kamu ingin menghapus ${detailSchedule.filmTitle} - ${formatDate(detailSchedule.time)} dari daftar jadwal tayang?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                    child: const Text('Batal'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      _onDelete(context);
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const MainNavigationBar(),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text(
+                                      'Hapus',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  )
+                : const SizedBox.shrink(),
           ],
         ),
       ),
