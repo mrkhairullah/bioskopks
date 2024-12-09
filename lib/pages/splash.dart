@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../models/session.dart';
+import '../services/user.dart';
 import '../widgets/main_navigation_bar.dart';
 import 'login.dart';
 
@@ -20,16 +21,17 @@ class _SplashPageState extends State<SplashPage> {
   Future<void> _navigateAfterDelay(BuildContext context) async {
     await Future.delayed(const Duration(seconds: 2));
 
-    final sharedPreferences = await SharedPreferences.getInstance();
-    final isLoggedIn = sharedPreferences.getBool('isLoggedIn') ?? false;
+    final Session session = await UserService().getSession();
+    final isLoggedIn = session.isLoggedIn;
 
     if (context.mounted) {
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil<void>(
         context,
-        MaterialPageRoute(
+        MaterialPageRoute<void>(
           builder: (context) =>
               isLoggedIn ? const MainNavigationBar() : const LoginPage(),
         ),
+        (route) => false,
       );
     }
   }

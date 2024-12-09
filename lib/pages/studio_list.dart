@@ -1,30 +1,30 @@
 import 'package:flutter/material.dart';
-import '../models/film.dart';
-import '../services/film.dart';
-import '../widgets/film_card.dart';
+import '../models/studio.dart';
+import '../services/studio.dart';
+import '../widgets/studio_card.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class StudioListPage extends StatefulWidget {
+  const StudioListPage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<StudioListPage> createState() => _StudioListPageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  List<Film> _films = [];
+class _StudioListPageState extends State<StudioListPage> {
+  List<Studio> _studios = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadFilms();
+    _loadStudios();
   }
 
-  Future<void> _loadFilms() async {
-    final films = await FilmService().getFilms();
+  Future<void> _loadStudios() async {
+    final studios = await StudioService().getStudios();
 
     setState(() {
-      _films = films;
+      _studios = studios;
       _isLoading = false;
     });
   }
@@ -33,13 +33,13 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BioskopKS'),
+        title: const Text('Daftar Studio'),
       ),
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(),
             )
-          : _films.isEmpty
+          : _studios.isEmpty
               ? const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -59,9 +59,9 @@ class _HomePageState extends State<HomePage> {
                 )
               : ListView.separated(
                   padding: const EdgeInsets.all(16.0),
-                  itemCount: _films.length,
+                  itemCount: _studios.length,
                   itemBuilder: (context, index) {
-                    return FilmCard(film: _films[index]);
+                    return StudioCard(studio: _studios[index]);
                   },
                   separatorBuilder: (context, index) {
                     return const SizedBox(height: 12.0);

@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import '../models/film.dart';
+import '../models/session.dart';
 import '../models/detail_schedule.dart';
-import '../services/detail_schedule.dart';
+import '../pages/save_film.dart';
+import '../pages/save_schedule.dart';
+import '../services/schedule.dart';
+import '../services/user.dart';
+import '../services/film.dart';
 import '../widgets/detail_schedule_card.dart';
+import '../widgets/main_navigation_bar.dart';
 
 class DetailFilmPage extends StatefulWidget {
   final Film film;
@@ -14,22 +20,37 @@ class DetailFilmPage extends StatefulWidget {
 }
 
 class _DetailFilmPageState extends State<DetailFilmPage> {
-  List<DetailSchedule> detailSchedules = [];
-  bool isLoading = true;
+  List<DetailSchedule> _detailSchedules = [];
+  bool _isAdmin = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadSchedule();
+    _loadSchedules();
+    _isAdminCheck();
   }
 
-  Future<void> _loadSchedule() async {
-    final filmDetailSchedules =
-        await DetailScheduleService().getDetailSchedule(widget.film.id!);
+  Future<void> _loadSchedules() async {
+    final detailSchedules =
+        await ScheduleService().getDetailSchedule(widget.film.id!);
+
     setState(() {
-      detailSchedules = filmDetailSchedules;
-      isLoading = false;
+      _detailSchedules = detailSchedules;
+      _isLoading = false;
     });
+  }
+
+  Future<void> _isAdminCheck() async {
+    final Session session = await UserService().getSession();
+
+    setState(() {
+      _isAdmin = session.isAdmin;
+    });
+  }
+
+  Future<void> _onDelete() async {
+    await FilmService().deleteFilm(widget.film.id!);
   }
 
   @override
@@ -37,6 +58,61 @@ class _DetailFilmPageState extends State<DetailFilmPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detail Film'),
+        actions: _isAdmin
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SaveFilmPage(film: widget.film),
+                      ),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text('Hapus'),
+                          content: Text(
+                              'Kamu ingin menghapus ${widget.film.title} dari daftar film?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                              child: const Text('Batal'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                _onDelete();
+                                Navigator.pushAndRemoveUntil<void>(
+                                  context,
+                                  MaterialPageRoute<void>(
+                                    builder: (context) =>
+                                        const MainNavigationBar(),
+                                  ),
+                                  (route) => false,
+                                );
+                              },
+                              child: const Text(
+                                'Hapus',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+              ]
+            : null,
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -134,21 +210,40 @@ class _DetailFilmPageState extends State<DetailFilmPage> {
                 ),
               ),
               const SizedBox(height: 20.0),
-              const Text(
-                'Jadwal Tayang',
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 24.0,
-                  fontWeight: FontWeight.bold,
-                ),
-                overflow: TextOverflow.ellipsis,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Jadwal Tayang',
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 24.0,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  _isAdmin
+                      ? IconButton(
+                          icon: const Icon(Icons.add),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    SaveSchedulePage(filmId: widget.film.id),
+                              ),
+                            );
+                          },
+                        )
+                      : const SizedBox.shrink(),
+                ],
               ),
               const SizedBox(height: 10.0),
-              isLoading
+              _isLoading
                   ? const Center(
                       child: CircularProgressIndicator(),
                     )
-                  : detailSchedules.isEmpty
+                  : _detailSchedules.isEmpty
                       ? const Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -170,10 +265,12 @@ class _DetailFilmPageState extends State<DetailFilmPage> {
                       : ListView.separated(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          itemCount: detailSchedules.length,
+                          itemCount: _detailSchedules.length,
                           itemBuilder: (context, index) {
                             return DetailScheduleCard(
-                                detailSchedule: detailSchedules[index]);
+                              detailSchedule: _detailSchedules[index],
+                              isAdmin: _isAdmin,
+                            );
                           },
                           separatorBuilder: (context, index) {
                             return const SizedBox(height: 12.0);

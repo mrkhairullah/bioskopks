@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import '../models/detail_schedule.dart';
-import '../helpers/format_date.dart';
-import '../helpers/format_price.dart';
-import '../services/order.dart';
 import '../models/order.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../models/detail_schedule.dart';
+import '../models/session.dart';
+import '../services/order.dart';
+import '../services/order_seat.dart';
+import '../services/user.dart';
+import '../utils/format_date.dart';
+import '../utils/format_price.dart';
 import '../widgets/main_navigation_bar.dart';
 
 class OrderPage extends StatefulWidget {
@@ -17,67 +19,61 @@ class OrderPage extends StatefulWidget {
 }
 
 class _OrderPageState extends State<OrderPage> {
-  List<String> reservedSeats = [];
-  List<String> selectedSeats = [];
-  String? selectedMethod;
-  int ticketCount = 0;
-  int totalPrice = 0;
+  List<String> _unavailableSeats = [];
+  List<String> _selectedSeats = [];
+  String? _selectedMethod;
+  int _ticketCount = 0;
+  int _totalPrice = 0;
 
   @override
   void initState() {
     super.initState();
-    _fetchReservedSeats();
+    _loadUnavailableSeats();
   }
 
-  void _fetchReservedSeats() async {
-    final seats = await OrderService().getReservedSeats(
+  Future<void> _loadUnavailableSeats() async {
+    final unavailableSeats = await OrderSeatService().getUnavailableSeats(
         widget.detailSchedule.filmId, widget.detailSchedule.scheduleId);
 
     setState(() {
-      reservedSeats = seats;
+      _unavailableSeats = unavailableSeats;
     });
   }
 
-  void _createOrder(BuildContext context) async {
-    final sharedPreferences = await SharedPreferences.getInstance();
+  Future<void> _onSubmit(BuildContext context) async {
+    final Session session = await UserService().getSession();
     final orderId = await OrderService().createOrder(Order(
-      userId: sharedPreferences.getInt('userId')!,
+      userId: session.userId,
       filmId: widget.detailSchedule.filmId,
       scheduleId: widget.detailSchedule.scheduleId,
-      ticket: ticketCount,
-      totalPrice: totalPrice,
-      method: selectedMethod!,
-      status: 'Pending',
+      ticket: _ticketCount,
+      totalPrice: _totalPrice,
+      method: _selectedMethod!,
+      status: 'Menunggu Konfirmasi',
       createdAt: DateTime.now().toString(),
       updatedAt: DateTime.now().toString(),
     ));
 
-    if (orderId != 0) {
+    if (orderId > 0) {
+      OrderSeatService().createBatchOrderSeats(orderId, _selectedSeats);
+
       if (context.mounted) {
-        Navigator.pushReplacement<void, void>(
+        Navigator.pushAndRemoveUntil<void>(
           context,
           MaterialPageRoute<void>(
-              builder: (context) => const MainNavigationBar(index: 1)),
+            builder: (context) => const MainNavigationBar(index: 1),
+          ),
+          (route) => false,
         );
       }
     } else {
       if (context.mounted) {
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Gagal'),
-              content: const Text('Terjadi kesalahan saat membuat pesanan'),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Ok'),
-                ),
-              ],
-            );
-          },
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Terjadi kesalahan saat membuat pesanan'),
+            margin: EdgeInsets.all(16.0),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     }
@@ -196,9 +192,13 @@ class _OrderPageState extends State<OrderPage> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButton<String>(
-                    value: selectedMethod,
+                    value: _selectedMethod,
                     hint: const Text('Pilih metode pembayaran'),
                     items: const [
+                      DropdownMenuItem<String>(
+                        value: 'Cash',
+                        child: Text('Cash'),
+                      ),
                       DropdownMenuItem<String>(
                         value: 'Transfer Bank',
                         child: Text('Transfer Bank'),
@@ -210,7 +210,7 @@ class _OrderPageState extends State<OrderPage> {
                     ],
                     onChanged: (String? newValue) {
                       setState(() {
-                        selectedMethod = newValue;
+                        _selectedMethod = newValue;
                       });
                     },
                   ),
@@ -237,9 +237,10 @@ class _OrderPageState extends State<OrderPage> {
                     ),
                     onChanged: (value) {
                       setState(() {
-                        ticketCount = int.tryParse(value) ?? 0;
-                        totalPrice = ticketCount * widget.detailSchedule.price;
-                        selectedSeats = [];
+                        _ticketCount = int.tryParse(value) ?? 0;
+                        _totalPrice =
+                            _ticketCount * widget.detailSchedule.price;
+                        _selectedSeats = [];
                       });
                     },
                   ),
@@ -257,7 +258,7 @@ class _OrderPageState extends State<OrderPage> {
                     ),
                   ),
                   Text(
-                    formatPrice(totalPrice),
+                    formatPrice(_totalPrice),
                     style: const TextStyle(
                       fontSize: 18.0,
                       fontWeight: FontWeight.bold,
@@ -276,22 +277,23 @@ class _OrderPageState extends State<OrderPage> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 children: List.generate(
-                  widget.detailSchedule.studioCapacitySeat,
+                  widget.detailSchedule.studioSeat,
                   (index) {
                     String seatLabel =
                         '${String.fromCharCode(65 + (index ~/ 8))}${(index % 8) + 1}';
-                    bool isReserved = reservedSeats.contains(seatLabel);
-                    bool isAvailable = !isReserved &&
-                        index < widget.detailSchedule.studioMaxSeat;
+                    bool isReserved = _unavailableSeats.contains(seatLabel);
+                    bool isAvailable =
+                        !isReserved && index < widget.detailSchedule.studioSeat;
 
                     return GestureDetector(
                       onTap: isAvailable
                           ? () {
                               setState(() {
-                                if (selectedSeats.contains(seatLabel)) {
-                                  selectedSeats.remove(seatLabel);
-                                } else if (selectedSeats.length < ticketCount) {
-                                  selectedSeats.add(seatLabel);
+                                if (_selectedSeats.contains(seatLabel)) {
+                                  _selectedSeats.remove(seatLabel);
+                                } else if (_selectedSeats.length <
+                                    _ticketCount) {
+                                  _selectedSeats.add(seatLabel);
                                 }
                               });
                             }
@@ -300,7 +302,7 @@ class _OrderPageState extends State<OrderPage> {
                         decoration: BoxDecoration(
                           color: isReserved
                               ? Colors.grey
-                              : selectedSeats.contains(seatLabel)
+                              : _selectedSeats.contains(seatLabel)
                                   ? Colors.green
                                   : isAvailable
                                       ? Colors.blue
@@ -324,10 +326,10 @@ class _OrderPageState extends State<OrderPage> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: selectedSeats.isEmpty
+                  onPressed: _selectedSeats.isEmpty
                       ? null
                       : () {
-                          _createOrder(context);
+                          _onSubmit(context);
                         },
                   child: const Text('Pesan'),
                 ),

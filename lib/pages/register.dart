@@ -1,25 +1,27 @@
 import 'package:flutter/material.dart';
-import 'register.dart';
-import '../services/user.dart';
 import '../widgets/main_navigation_bar.dart';
+import '../services/user.dart';
+import 'login.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _RegisterPageState extends State<RegisterPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  String? _name;
   String? _email;
   String? _password;
 
-  Future<void> _login(BuildContext context) async {
+  Future<void> _register(BuildContext context) async {
     try {
-      final isLoggedIn = await UserService().login(_email!, _password!);
+      final isRegistered =
+          await UserService().register(_name!, _email!, _password!);
 
-      if (isLoggedIn) {
+      if (isRegistered) {
         if (context.mounted) {
           Navigator.pushAndRemoveUntil<void>(
             context,
@@ -63,12 +65,27 @@ class _LoginPageState extends State<LoginPage> {
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
                 Image.asset(
                   'assets/img/logo.png',
                   width: 200,
                   height: 200,
+                ),
+                const SizedBox(height: 16.0),
+                TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'Nama',
+                    hintText: 'Masukkan nama',
+                  ),
+                  keyboardType: TextInputType.name,
+                  validator: (String? value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Mohon masukkan nama';
+                    }
+                    return null;
+                  },
+                  onSaved: (value) => _name = value,
                 ),
                 const SizedBox(height: 16.0),
                 TextFormField(
@@ -110,10 +127,10 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
                         _formKey.currentState!.save();
-                        _login(context);
+                        _register(context);
                       }
                     },
-                    child: const Text('Masuk'),
+                    child: const Text('Daftar'),
                   ),
                 ),
                 const SizedBox(height: 32.0),
@@ -121,7 +138,7 @@ class _LoginPageState extends State<LoginPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text(
-                      'Belum punya akun?',
+                      'Sudah punya akun?',
                       style: TextStyle(
                         fontSize: 14.0,
                         color: Colors.black,
@@ -133,12 +150,12 @@ class _LoginPageState extends State<LoginPage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const RegisterPage(),
+                            builder: (context) => const LoginPage(),
                           ),
                         );
                       },
                       child: const Text(
-                        'Daftar',
+                        'Masuk',
                         style: TextStyle(
                           fontSize: 14.0,
                           fontWeight: FontWeight.bold,

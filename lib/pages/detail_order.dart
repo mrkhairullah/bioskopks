@@ -1,8 +1,13 @@
+import 'dart:async';
+import 'package:bioskopks/models/order.dart';
 import 'package:flutter/material.dart';
 import '../models/detail_order.dart';
+import '../models/session.dart';
 import '../services/order.dart';
-import '../helpers/format_date.dart';
-import '../helpers/format_price.dart';
+import '../services/user.dart';
+import '../utils/format_date.dart';
+import '../utils/format_price.dart';
+import '../widgets/main_navigation_bar.dart';
 
 class DetailOrderPage extends StatefulWidget {
   final int orderId;
@@ -14,22 +19,101 @@ class DetailOrderPage extends StatefulWidget {
 }
 
 class _DetailOrderPageState extends State<DetailOrderPage> {
-  DetailOrder? detailOrder;
-  bool isLoading = true;
+  late TextEditingController _noteController;
+  Timer? _debounce;
+  DetailOrder? _detailOrder;
+  String? _note;
+  bool _isAdmin = false;
+  int? _adminId;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadOrder();
+    _isAdminCheck();
   }
 
   void _loadOrder() async {
-    final detailOrderData = await OrderService().getDetailOrder(widget.orderId);
+    final detailOrder = await OrderService().getDetailOrder(widget.orderId);
 
     setState(() {
-      detailOrder = detailOrderData;
-      isLoading = false;
+      _detailOrder = detailOrder;
+      _note = _detailOrder?.note;
+      _isLoading = false;
     });
+
+    _noteController = TextEditingController(text: _note);
+    _noteController.addListener(_onNoteChanged);
+  }
+
+  Future<void> _isAdminCheck() async {
+    final Session session = await UserService().getSession();
+
+    setState(() {
+      _isAdmin = session.isAdmin;
+
+      if (session.isAdmin) {
+        setState(() {
+          _adminId = session.userId;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  void _onNoteChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      setState(() {
+        _note = _noteController.text;
+      });
+    });
+  }
+
+  Future<void> _onUpdate(BuildContext context, String status) async {
+    Order order = Order(
+      id: _detailOrder!.id,
+      userId: _detailOrder!.userId,
+      filmId: _detailOrder!.filmId,
+      scheduleId: _detailOrder!.scheduleId,
+      ticket: _detailOrder!.ticket,
+      totalPrice: _detailOrder!.totalPrice,
+      method: _detailOrder!.method,
+      note: _note,
+      paymentProof: null,
+      status: status,
+      confirmedBy: _isAdmin ? _adminId : null,
+      createdAt: _detailOrder!.createdAt,
+      updatedAt: DateTime.now().toString(),
+    );
+    int orderId = await OrderService().updateOrder(order);
+
+    if (orderId > 0) {
+      if (context.mounted) {
+        Navigator.pushAndRemoveUntil<void>(
+          context,
+          MaterialPageRoute<void>(
+            builder: (context) => const MainNavigationBar(),
+          ),
+          (route) => false,
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Terjadi kesalahan saat memperbarui pesanan'),
+          margin: EdgeInsets.all(16.0),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -41,7 +125,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: isLoading
+          child: _isLoading
               ? const Center(
                   child: CircularProgressIndicator(),
                 )
@@ -58,7 +142,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                         borderRadius: BorderRadius.circular(4.0),
                       ),
                       child: Text(
-                        detailOrder!.status,
+                        _detailOrder!.status,
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -78,7 +162,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                           ),
                         ),
                         Text(
-                          detailOrder!.filmTitle,
+                          _detailOrder!.filmTitle,
                           style: const TextStyle(
                             color: Colors.black,
                             fontSize: 20.0,
@@ -100,7 +184,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                           ),
                         ),
                         Text(
-                          formatDate(detailOrder!.scheduleTime),
+                          formatDate(_detailOrder!.scheduleTime),
                           style: const TextStyle(
                             color: Colors.black,
                             fontSize: 20.0,
@@ -122,7 +206,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                           ),
                         ),
                         Text(
-                          detailOrder!.userName,
+                          _detailOrder!.bookerName,
                           style: const TextStyle(
                             color: Colors.black,
                             fontSize: 20.0,
@@ -144,7 +228,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                           ),
                         ),
                         Text(
-                          detailOrder!.ticket.toString(),
+                          _detailOrder!.ticket.toString(),
                           style: const TextStyle(
                             color: Colors.black,
                             fontSize: 20.0,
@@ -166,7 +250,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                           ),
                         ),
                         Text(
-                          formatPrice(detailOrder!.totalPrice),
+                          formatPrice(_detailOrder!.totalPrice),
                           style: const TextStyle(
                             color: Colors.black,
                             fontSize: 20.0,
@@ -188,7 +272,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                           ),
                         ),
                         Text(
-                          detailOrder!.method,
+                          _detailOrder!.method,
                           style: const TextStyle(
                             color: Colors.black,
                             fontSize: 20.0,
@@ -209,13 +293,16 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        Text(
-                          detailOrder!.note ?? '-',
-                          style: const TextStyle(
-                            color: Colors.black,
-                            fontSize: 20.0,
-                            fontWeight: FontWeight.bold,
+                        TextFormField(
+                          controller: _noteController,
+                          decoration: InputDecoration(
+                            hintText:
+                                _isAdmin ? 'Masukkan catatan (opsional)' : '-',
                           ),
+                          readOnly: _isAdmin ? false : true,
+                          minLines: 1,
+                          maxLines: 5,
+                          keyboardType: TextInputType.multiline,
                         ),
                       ],
                     ),
@@ -232,7 +319,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                           ),
                         ),
                         Text(
-                          detailOrder!.confirmedByName ?? '-',
+                          _detailOrder!.adminName ?? '-',
                           style: const TextStyle(
                             color: Colors.black,
                             fontSize: 20.0,
@@ -242,23 +329,113 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                       ],
                     ),
                     const SizedBox(height: 12.0),
-                    Center(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16.0),
-                        child: Image.asset(
-                          'assets/img/empty-photo.png',
-                          width: 200.0,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Dipesan Pada',
+                          style: TextStyle(
+                            color: Colors.black54,
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
+                        Text(
+                          formatDate(_detailOrder!.createdAt!),
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 20.0,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12.0),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () {},
-                        child: const Text('Unggah Bukti Pembayaran'),
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Diperbarui Pada',
+                          style: TextStyle(
+                            color: Colors.black54,
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          formatDate(_detailOrder!.updatedAt!),
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 20.0,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 12.0),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Bukti Pembayaran',
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontSize: 16.0,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            FilledButton(
+                              onPressed: () {},
+                              child: const Text('Unggah Bukti'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8.0),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16.0),
+                            child: Image.asset(
+                              'assets/img/empty-photo.png',
+                              width: 200.0,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12.0),
+                    _isAdmin
+                        ? Row(
+                            children: [
+                              Expanded(
+                                child: FilledButton(
+                                  onPressed: () {
+                                    _onUpdate(context, 'Sukses');
+                                  },
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                  ),
+                                  child: const Text('Konfirmasi'),
+                                ),
+                              ),
+                              const SizedBox(width: 8.0),
+                              Expanded(
+                                child: FilledButton(
+                                  onPressed: () {
+                                    _onUpdate(context, 'Ditolak');
+                                  },
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                  ),
+                                  child: const Text('Tolak'),
+                                ),
+                              ),
+                            ],
+                          )
+                        : const SizedBox.shrink(),
                   ],
                 ),
         ),

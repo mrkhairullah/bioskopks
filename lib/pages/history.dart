@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
-import '../services/order.dart';
 import '../models/order_history.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../models/session.dart';
+import '../services/order.dart';
+import '../services/user.dart';
 import '../widgets/history_card.dart';
 
 class HistoryPage extends StatefulWidget {
-  const HistoryPage({super.key});
+  final bool? allUsers;
+
+  const HistoryPage({super.key, this.allUsers});
 
   @override
   State<HistoryPage> createState() => _HistoryPageState();
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  List<OrderHistory> orderHistories = [];
-  bool isLoading = true;
+  List<OrderHistory> _orderHistories = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -22,12 +25,13 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Future<void> _loadOrderHistories() async {
-    final sharedPreferences = await SharedPreferences.getInstance();
-    final orderHistoriesData = await OrderService()
-        .getOrderHistories(sharedPreferences.getInt('userId')!);
+    final Session session = await UserService().getSession();
+    final orderHistories = await OrderService()
+        .getOrderHistories(widget.allUsers == true ? null : session.userId);
+
     setState(() {
-      orderHistories = orderHistoriesData;
-      isLoading = false;
+      _orderHistories = orderHistories;
+      _isLoading = false;
     });
   }
 
@@ -35,13 +39,14 @@ class _HistoryPageState extends State<HistoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Riwayat Pemesanan'),
+        title: Text(
+            widget.allUsers == true ? 'Daftar Pesanan' : 'Riwayat Pesanan'),
       ),
-      body: isLoading
+      body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(),
             )
-          : orderHistories.isEmpty
+          : _orderHistories.isEmpty
               ? const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -61,9 +66,9 @@ class _HistoryPageState extends State<HistoryPage> {
                 )
               : ListView.separated(
                   padding: const EdgeInsets.all(16.0),
-                  itemCount: orderHistories.length,
+                  itemCount: _orderHistories.length,
                   itemBuilder: (context, index) {
-                    return HistoryCard(orderHistory: orderHistories[index]);
+                    return HistoryCard(orderHistory: _orderHistories[index]);
                   },
                   separatorBuilder: (context, index) {
                     return const SizedBox(height: 12.0);
