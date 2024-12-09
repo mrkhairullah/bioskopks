@@ -6,5 +6,6 @@ String formatPrice(int price) {
     symbol: 'Rp ',
     decimalDigits: 0,
   );
+
   return formatter.format(price);
 }
